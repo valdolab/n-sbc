@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from sklearn.base import BaseEstimator
-from sklearn.utils.validation import _check_sample_weight, check_x_y
+from sklearn.utils.validation import _check_sample_weight, check_X_y
 
 
 class BaseNSBC(BaseEstimator, ABC):
@@ -59,7 +59,7 @@ class BaseNSBC(BaseEstimator, ABC):
             Returns self.
         """
         self._validate_params()
-        x, y = check_x_y(x, y, accept_sparse=False)
+        x, y = check_X_y(x, y, accept_sparse=False)
 
         if sample_weight is not None:
             sample_weight = _check_sample_weight(sample_weight, x)

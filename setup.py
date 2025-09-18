@@ -26,10 +26,12 @@ setup(
         "numpy>=1.19.0",
         "scipy>=1.5.0",
         "scikit-learn>=0.24.0",
+        "joblib>=1.0.0",
     ],
     extras_require={
         "dev": [
             "pytest>=7.0.0",
+            "pytest-cov>=4.0",
         ],
     },
 )
