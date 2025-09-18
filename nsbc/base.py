@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from sklearn.base import BaseEstimator
-from sklearn.utils.validation import check_X_y
+from sklearn.utils.validation import _check_sample_weight, check_x_y
 
 
 class BaseNSBC(BaseEstimator, ABC):
@@ -14,11 +14,13 @@ class BaseNSBC(BaseEstimator, ABC):
 
     def __init__(
         self,
-        n_value=10,
+        n_value=1,
+        decimals=2,
         random_state=None,
         verbose=0,
     ):
         self.n_value = n_value
+        self.decimals = decimals
         self.random_state = random_state
         self.verbose = verbose
 
@@ -26,6 +28,8 @@ class BaseNSBC(BaseEstimator, ABC):
         """Validate input parameters."""
         if self.n_value <= 0:
             raise ValueError(f"n_value must be > 0, got {self.n_value}")
+        if self.decimals < 0:
+            raise ValueError(f"decimals must be >= 0, got {self.decimals}")
 
     @abstractmethod
     def _fit_internal(self, x, y):
@@ -42,7 +46,7 @@ class BaseNSBC(BaseEstimator, ABC):
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        x : array-like of shape (n_samples, n_features)
             Training data.
         y : array-like of shape (n_samples,)
             Target values.
@@ -55,11 +59,13 @@ class BaseNSBC(BaseEstimator, ABC):
             Returns self.
         """
         self._validate_params()
-        x, y = check_X_y(x, y, accept_sparse=False)
+        x, y = check_x_y(x, y, accept_sparse=False)
+
+        if sample_weight is not None:
+            sample_weight = _check_sample_weight(sample_weight, x)
 
         self.n_features_in_ = x.shape[1]
         self.n_samples_ = x.shape[0]
         self._fit_internal(x, y)
         self.is_fitted_ = True
-
         return self
