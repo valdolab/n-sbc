@@ -19,8 +19,6 @@ class NSBCEngine:
         self.n_value = n_value
         self.decimals = decimals
         self.random_state = check_random_state(random_state)
-
-        # Initialize placeholders
         self.coef_ = None
         self.classes_ = None
         self.n_classes_ = None
@@ -31,6 +29,8 @@ class NSBCEngine:
         This is where your core algorithm will be implemented.
         """
         # TODO: Implement actual n-SBC training algorithm here
+        #
+
         # Mock implementation using simple logistic regression approach
         n_samples, n_features = x.shape
         self.classes_ = np.sort(np.unique(y))
@@ -66,6 +66,8 @@ class NSBCEngine:
     def predict(self, x):
         """Make predictions."""
         # TODO: Implement actual n-SBC prediction algorithm
+        #
+
         # Mock: fake predict data
         hidden = self._transform(x)
         decision = self._decision_function(hidden)
@@ -81,6 +83,8 @@ class NSBCEngine:
     def predict_proba(self, x):
         """Predict probabilities (for classification only)."""
         # TODO: Implement actual n-SBC probability estimation
+        #
+
         # Mock: fake predict data
         hidden = self._transform(x)
         decision = self._decision_function(hidden)
@@ -101,6 +105,8 @@ class NSBCEngine:
     def get_pattern_importances(self):
         """Calculate feature importances."""
         # TODO: Implement actual pattern importance calculation
+        #
+
         # Mock: return absolute mean of coefficients (excluding intercept)
         if self.coef_ is None:
             return None
