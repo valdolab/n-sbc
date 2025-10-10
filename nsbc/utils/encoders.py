@@ -316,9 +316,7 @@ class MLBinaryEncoder:
         n_chunks = int(np.ceil(n_samples / self.chunk_size))
 
         pbar = (
-            tqdm(range(n_chunks), desc=f"Encoding with {self.encoder.name}")
-            if self.verbose
-            else range(n_chunks)
+            tqdm(range(n_chunks), desc="Encoding") if self.verbose else range(n_chunks)
         )
 
         for chunk_idx in pbar:
@@ -457,7 +455,7 @@ class MLBinaryEncoderVectorized(MLBinaryEncoder):
         encoded = np.zeros((n_samples, self.params.total_bit_width), dtype=np.uint8)
 
         col_offset = 0
-        for feature_idx in range(n_features):
+        for feature_idx in tqdm(range(n_features)):
             width = self.params.feature_bit_widths[feature_idx]
             feature_values = chunk[:, feature_idx].astype(np.int64)
             binary_matrix = np.zeros((n_samples, width), dtype=np.uint8)
