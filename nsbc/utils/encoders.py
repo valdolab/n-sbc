@@ -1,6 +1,5 @@
 import json
 import pickle
-import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
@@ -14,14 +13,11 @@ class EncodingParams:
     """Parameters learned during fitting that must be preserved for transform"""
 
     num_decimals: int = 2
-    decimal_factor: int = 1
-    feature_mins: np.ndarray = None
-    feature_maxs: np.ndarray = None
-    feature_ranges: np.ndarray = None
+    factor: int = 10
     feature_bit_widths: np.ndarray = None
     total_bit_width: int = 0
     n_features: int = 0
-    offset_value: int = 0
+    min_val: float = 0.0
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization"""
@@ -42,14 +38,9 @@ class EncodingParams:
         """Create from dictionary"""
         params = cls()
         for key, value in params_dict.items():
-            if key in [
-                "feature_mins",
-                "feature_maxs",
-                "feature_ranges",
-                "feature_bit_widths",
-            ]:
+            if key in ["feature_bit_widths"]:
                 setattr(params, key, np.array(value) if value is not None else None)
-            else:
+            elif hasattr(params, key):
                 setattr(params, key, value)
         return params
 
@@ -141,10 +132,18 @@ class MLBinaryEncoder:
     """
     Binary encoder for Machine Learning with fit/transform pattern.
     Learns normalization parameters during fit and applies them consistently.
+
+    Normalization replicates nsbc_normalize.m:
+      1. Shift data by abs(global_min) so all values >= 0
+      2. Round to num_decimals, then multiply by 10 and round to integer
+      3. Clamp negatives to 0
     """
 
     def __init__(
-        self, encoder_type: str = "gray", chunk_size: int = 10000, verbose: bool = True
+        self,
+        encoder_type: str = "gray",
+        chunk_size: int = 10000,
+        verbose: bool = True,
     ):
         """
         Initialize the ML Binary Encoder.
@@ -171,13 +170,18 @@ class MLBinaryEncoder:
         self.params: Optional[EncodingParams] = None
         self.is_fitted = False
 
-    def fit(self, x: np.ndarray, num_decimals: int = 2) -> "MLBinaryEncoder":
+    def fit(
+        self, x: np.ndarray, num_decimals: int = 2, factor: int = 10
+    ) -> "MLBinaryEncoder":
         """
         Fit the encoder to training data, learning normalization parameters.
 
+        Replicates nsbc_normalize.m (training mode) + nsbc_togray.m (bit widths).
+
         Args:
-            X: Training data (n_samples x n_features)
+            x: Training data (n_samples x n_features)
             num_decimals: Number of decimal places to preserve
+            factor: Multiplicative factor to convert rounded data to integers (default 10)
 
         Returns:
             self: Fitted encoder
@@ -190,27 +194,31 @@ class MLBinaryEncoder:
         n_samples, n_features = x.shape
         self.params = EncodingParams()
         self.params.num_decimals = num_decimals
-        self.params.decimal_factor = 10**num_decimals
+        self.params.factor = factor
         self.params.n_features = n_features
 
-        x_scaled = np.round(x * self.params.decimal_factor).astype(np.int64)
-        self.params.feature_mins = np.min(x_scaled, axis=0)
-        self.params.feature_maxs = np.max(x_scaled, axis=0)
-        self.params.feature_ranges = self.params.feature_maxs - self.params.feature_mins
+        # Global minimum across all features (single scalar)
+        # MATLAB: params.min_val = min(min(data))
+        global_min = np.min(x)
+        self.params.min_val = float(global_min)
 
-        # We add a small buffer (1) to ensure strictly positive values
-        self.params.offset_value = (
-            abs(np.min(self.params.feature_mins)) + 1
-            if np.min(self.params.feature_mins) < 0
-            else 0
-        )
-        x_positive = x_scaled + self.params.offset_value
+        # Shift to positive, round, then convert to integers
+        # MATLAB: data_positive = data + abs(params.min_val)
+        #         data_positive = round(data_positive, num_decimals)
+        #         data_int = round(data_positive * factorm)
+        #         data_int(data_int < 0) = 0
+        data_positive = x + abs(global_min)
+        data_rounded = np.round(data_positive, num_decimals)
+        data_int = np.floor(data_rounded * factor + 0.5).astype(np.int64)
+        data_int[data_int < 0] = 0
+
+        # Bit widths from max value per feature
+        # MATLAB: feature_bin_lengths(i) = length(dec2bin(max_val))
         self.params.feature_bit_widths = np.zeros(n_features, dtype=np.int32)
         for i in range(n_features):
-            max_val = np.max(x_positive[:, i])
-            # Calculate bits needed: ceil(log2(max_val + 1))
+            max_val = int(np.max(data_int[:, i]))
             if max_val > 0:
-                self.params.feature_bit_widths[i] = int(np.ceil(np.log2(max_val + 1)))
+                self.params.feature_bit_widths[i] = max_val.bit_length()
             else:
                 self.params.feature_bit_widths[i] = 1
 
@@ -218,11 +226,6 @@ class MLBinaryEncoder:
 
         if self.verbose:
             print("Normalization learned:")
-            print(f"  - Decimal factor: {self.params.decimal_factor}")
-            print(f"  - Offset value: {self.params.offset_value}")
-            print(
-                f"  - Feature ranges: min={self.params.feature_mins.min()}, max={self.params.feature_maxs.max()}"
-            )
             print(f"  - Bit widths per feature: {self.params.feature_bit_widths}")
             print(f"  - Total bit width: {self.params.total_bit_width}")
 
@@ -230,23 +233,26 @@ class MLBinaryEncoder:
         return self
 
     def transform(
-        self, x: np.ndarray, normalized: bool = False, warning_flag: bool = False
+        self, x: np.ndarray, normalized: bool = False
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Transform data using learned parameters.
 
+        Replicates nsbc_togray.m (transform mode with existing params).
+
         Args:
-            X: Data to transform (n_samples x n_features)
+            x: Data to transform (n_samples x n_features)
+            normalized: If True, also return the normalized integer data
 
         Returns:
-            Tuple of (encoded_binary_matrix, normalized_integer_data)
+            Encoded binary matrix, or tuple of (encoded, normalized) if normalized=True
         """
         self._validate_for_transform(x)
         n_samples = x.shape[0]
         if self.verbose:
             print(f"Transforming {n_samples} samples")
 
-        x_normalized = self._normalize_and_clip(x, warning_flag)
+        x_normalized = self._normalize(x)
         encoded = self._encode_data(x_normalized, n_samples)
         if self.verbose:
             print(f"Output shape: {encoded.shape}")
@@ -264,51 +270,26 @@ class MLBinaryEncoder:
                 f"Expected {self.params.n_features} features, got {n_features}"
             )
 
-    def _normalize_and_clip(self, x: np.ndarray, warning_flag: bool) -> np.ndarray:
-        """Normalize and clip features to training range."""
-        x_scaled = np.round(x * self.params.decimal_factor).astype(np.int64)
-        x_normalized = x_scaled + self.params.offset_value
-        for i in range(x.shape[1]):
-            x_normalized[:, i] = self._clip_feature(
-                x_scaled[:, i], x_normalized[:, i], i, warning_flag
-            )
-        return x_normalized
+    def _normalize(self, x: np.ndarray) -> np.ndarray:
+        """
+        Normalize data using learned parameters.
 
-    def _clip_feature(
-        self,
-        x_scaled_col: np.ndarray,
-        x_normalized_col: np.ndarray,
-        feature_idx: int,
-        warning_flag: bool,
-    ) -> np.ndarray:
-        """Clip a single feature to its training range."""
-        feature_min = np.min(x_scaled_col)
-        feature_max = np.max(x_scaled_col)
-
-        if self._is_out_of_range(feature_min, feature_max, feature_idx):
-            if warning_flag:
-                warnings.warn(
-                    f"Feature {feature_idx}: values [{feature_min}, {feature_max}] outside training range "
-                    f"[{self.params.feature_mins[feature_idx]}, {self.params.feature_maxs[feature_idx]}]. "
-                    "Clipping to training range.",
-                    category=UserWarning,
-                    stacklevel=3,
-                )
-            return np.clip(
-                x_normalized_col,
-                self.params.feature_mins[feature_idx] + self.params.offset_value,
-                self.params.feature_maxs[feature_idx] + self.params.offset_value,
-            )
-        return x_normalized_col
-
-    def _is_out_of_range(
-        self, feature_min: int, feature_max: int, feature_idx: int
-    ) -> bool:
-        """Check if feature values are outside training range."""
-        return (
-            feature_min < self.params.feature_mins[feature_idx]
-            or feature_max > self.params.feature_maxs[feature_idx]
+        Replicates nsbc_normalize.m (with saved params) + nsbc_togray.m clamping.
+        """
+        # MATLAB: data_positive = data + abs(params.min_val)
+        data_positive = x + abs(self.params.min_val)
+        data_rounded = np.round(data_positive, self.params.num_decimals)
+        # MATLAB: data_int = round(data_positive * factorm)
+        x_normalized = np.floor(data_rounded * self.params.factor + 0.5).astype(
+            np.int64
         )
+        # MATLAB: data_int(data_int < 0) = 0
+        x_normalized[x_normalized < 0] = 0
+        # MATLAB: data_int(:, i) = min(data_int(:, i), 2^feature_bin_lengths(i) - 1)
+        for i in range(x.shape[1]):
+            max_allowed = (1 << int(self.params.feature_bit_widths[i])) - 1
+            x_normalized[:, i] = np.minimum(x_normalized[:, i], max_allowed)
+        return x_normalized
 
     def _encode_data(self, x_normalized: np.ndarray, n_samples: int) -> np.ndarray:
         """Encode normalized data in chunks."""
@@ -329,24 +310,27 @@ class MLBinaryEncoder:
         return encoded
 
     def fit_transform(
-        self, x: np.ndarray, num_decimals: int = 2
+        self, x: np.ndarray, num_decimals: int = 2, factor: int = 10
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Fit encoder and transform data in one step.
 
         Args:
-            X: Training data (n_samples x n_features)
+            x: Training data (n_samples x n_features)
             num_decimals: Number of decimal places to preserve
+            factor: Multiplicative factor to convert rounded data to integers (default 10)
 
         Returns:
             Tuple of (encoded_binary_matrix, normalized_integer_data)
         """
-        self.fit(x, num_decimals)
+        self.fit(x, num_decimals, factor)
         return self.transform(x)
 
     def _encode_chunk(self, chunk: np.ndarray) -> np.ndarray:
         """
         Encode a chunk of normalized data.
+
+        Replicates nsbc_togray.m binary conversion + Gray encoding loop.
 
         Args:
             chunk: Normalized positive integer data
@@ -387,7 +371,7 @@ class MLBinaryEncoder:
             raise ValueError("Encoder must be fitted before inverse_transform.")
 
         n_samples = x_encoded.shape[0]
-        x_encoded = np.zeros((n_samples, self.params.n_features))
+        result = np.zeros((n_samples, self.params.n_features))
 
         col_offset = 0
         for feature_idx in range(self.params.n_features):
@@ -398,12 +382,15 @@ class MLBinaryEncoder:
                 encoded_str = "".join(map(str, encoded_bits.astype(int)))
                 binary_str = self.encoder.decode_bits(encoded_str)
                 value = int(binary_str, 2) if binary_str else 0
-                value = value - self.params.offset_value
-                x_encoded[sample_idx, feature_idx] = value / self.params.decimal_factor
+                # Reverse: int_val = round((x + abs(min_val)) * factor)
+                # so x = int_val / factor - abs(min_val)
+                result[sample_idx, feature_idx] = value / self.params.factor - abs(
+                    self.params.min_val
+                )
 
             col_offset += width
 
-        return x_encoded
+        return result
 
     def save_params(self, filepath: str):
         """
@@ -455,7 +442,12 @@ class MLBinaryEncoderVectorized(MLBinaryEncoder):
         encoded = np.zeros((n_samples, self.params.total_bit_width), dtype=np.uint8)
 
         col_offset = 0
-        for feature_idx in tqdm(range(n_features)):
+        feature_iter = (
+            tqdm(range(n_features), desc="Encoding features")
+            if self.verbose
+            else range(n_features)
+        )
+        for feature_idx in feature_iter:
             width = self.params.feature_bit_widths[feature_idx]
             feature_values = chunk[:, feature_idx].astype(np.int64)
             binary_matrix = np.zeros((n_samples, width), dtype=np.uint8)

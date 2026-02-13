@@ -28,7 +28,8 @@ def test_multiclass():
     )
     clf = NSBCClassifier(random_state=42)
     clf.fit(x, y)
-    # predictions = clf.predict(x[:10])
+    predictions = clf.predict(x[:10])
+    assert len(predictions) == 10
     proba = clf.predict_proba(x[:10])
     assert proba.shape == (10, 3)
     assert np.allclose(proba.sum(axis=1), 1.0)

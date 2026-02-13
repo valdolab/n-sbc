@@ -19,6 +19,7 @@ class NSBCEngine:
         self,
         n_value=3,
         decimals=2,
+        factor=10,
         encoder_type="gray",
         random_state=None,
         verbose=False,
@@ -28,10 +29,12 @@ class NSBCEngine:
 
         Parameters
         ----------
-        n_value : int, default=1
-            Number of nearest neighbors to consider
+        n_value : int, default=3
+            Number of top neighbors to sum per class
         decimals : int, default=2
             Number of decimal places to preserve in encoding
+        factor : int, default=10
+            Multiplicative factor to convert rounded data to integers
         encoder_type : str, default='gray'
             Type of encoding ('gray' or 'binary')
         random_state : int, RandomState instance or None, default=None
@@ -41,6 +44,7 @@ class NSBCEngine:
         """
         self.n_value = n_value
         self.decimals = decimals
+        self.factor = factor
         self.encoder_type = encoder_type
         self.random_state = check_random_state(random_state)
         self.verbose = verbose
@@ -55,6 +59,9 @@ class NSBCEngine:
     def fit(self, x, y):
         """
         Fit the n-SBC model.
+
+        Replicates nsbc_train.m: preprocesses data to Gray-coded binary
+        and stores it for lazy classification.
 
         Parameters
         ----------
@@ -84,14 +91,15 @@ class NSBCEngine:
             print(f"Fitting n-SBC with {x.shape[0]} samples, {x.shape[1]} features")
             print(f"Number of classes: {self.n_classes_}")
 
-        # Step 1: Apply scale and encoder
+        # Apply scale and encoder
         self.encoder_ = MLBinaryEncoderVectorized(
-            encoder_type=self.encoder_type, verbose=self.verbose
+            encoder_type=self.encoder_type,
+            verbose=self.verbose,
         )
 
-        # Step 2: Create X_train_encoded_ (M) matrix
+        # Create X_train_encoded_ (M) matrix
         self.X_train_encoded_ = self.encoder_.fit_transform(
-            x, num_decimals=self.decimals
+            x, num_decimals=self.decimals, factor=self.factor
         )
         if isinstance(self.X_train_encoded_, tuple):
             self.X_train_encoded_ = self.X_train_encoded_[0]
@@ -103,72 +111,113 @@ class NSBCEngine:
             print(f"Training complete. Encoded shape: {self.X_train_encoded_.shape}")
         return self
 
-    def _transform(self, x):
-        """Transform input to hidden representation."""
-        # Mock: fake _transform data
-        n = x.shape[0]
-        x_aug = np.hstack([np.ones((n, 1)), x])
-        return np.dot(x_aug, self.coef_)
-
-    def _decision_function(self, hidden):
-        """Compute decision function from hidden representation."""
-        # Mock: fake decision data
-        return hidden
-
     def predict(self, x):
-        """Make predictions."""
-        # TODO: Implement actual n-SBC prediction algorithm
-        #
+        """
+        Make predictions using the n-SBC algorithm.
 
-        # Mock: fake predict data
-        hidden = self._transform(x)
-        decision = self._decision_function(hidden)
+        Replicates nsbc_predict.m.
 
-        if self.n_classes_ == 2:
-            # Binary classification
-            predictions = (decision.flatten() > 0.5).astype(int)
-            return self.classes_[predictions]
-        else:
-            # Multi-class: argmax
-            return self.classes_[np.argmax(decision, axis=1)]
+        Parameters
+        ----------
+        x : array-like of shape (n_samples, n_features)
+            Samples to predict.
+
+        Returns
+        -------
+        predictions : ndarray of shape (n_samples,)
+            Predicted class labels.
+        """
+        x = np.asarray(x)
+        x_test_encoded = self.encoder_.transform(x)
+        if isinstance(x_test_encoded, tuple):
+            x_test_encoded = x_test_encoded[0]
+
+        n_test = x_test_encoded.shape[0]
+        predictions = np.zeros(n_test, dtype=int)
+        for i in range(n_test):
+            predictions[i] = self._classify_sample(x_test_encoded[i])
+        return predictions
+
+    def _classify_sample(self, test_pattern):
+        """
+        Classify a single sample using Hamming similarity scoring.
+
+        Replicates nsbc_classify_sample.m: computes Hamming similarity
+        to all training patterns, sums the top-u per class, and assigns
+        the class with the highest sum.
+
+        Parameters
+        ----------
+        test_pattern : ndarray of shape (n_bits,)
+            Binary-encoded test sample.
+
+        Returns
+        -------
+        predicted_label : int
+            Predicted class label.
+        """
+        n_bits = test_pattern.shape[0]
+        # Hamming distances vectorized: count differing bits per training sample
+        distances = np.count_nonzero(self.X_train_encoded_ != test_pattern, axis=1)
+        similarities = n_bits - distances
+
+        class_scores = np.zeros(self.n_classes_)
+        for k, label in enumerate(self.classes_):
+            class_sims = similarities[self.y_train_ == label]
+            sorted_desc = np.sort(class_sims)[::-1]
+            # Sum top-u similarities (or all if fewer than u)
+            top_u = min(self.n_value, len(sorted_desc))
+            class_scores[k] = np.sum(sorted_desc[:top_u])
+
+        return self.classes_[np.argmax(class_scores)]
 
     def predict_proba(self, x):
-        """Predict probabilities (for classification only)."""
-        # TODO: Implement actual n-SBC probability estimation
-        #
+        """
+        Predict class probabilities by normalizing similarity scores.
 
-        # Mock: fake predict data
-        hidden = self._transform(x)
-        decision = self._decision_function(hidden)
+        Parameters
+        ----------
+        x : array-like of shape (n_samples, n_features)
+            Samples to predict.
 
-        if self.n_classes_ == 2:
-            # Binary classification
-            decision = decision.flatten()
-            decision = np.clip(decision, -500, 500)
-            proba_pos = 1 / (1 + np.exp(-decision))
-            proba_neg = 1 - proba_pos
-            return np.column_stack([proba_neg, proba_pos])
-        else:
-            # Multi-class - softmax
-            decision_shifted = decision - np.max(decision, axis=1, keepdims=True)
-            exp_decision = np.exp(decision_shifted)
-            return exp_decision / np.sum(exp_decision, axis=1, keepdims=True)
+        Returns
+        -------
+        proba : ndarray of shape (n_samples, n_classes)
+            Class probability estimates.
+        """
+        x = np.asarray(x)
+        x_test_encoded = self.encoder_.transform(x)
+        if isinstance(x_test_encoded, tuple):
+            x_test_encoded = x_test_encoded[0]
+
+        n_test = x_test_encoded.shape[0]
+        n_bits = x_test_encoded.shape[1]
+        proba = np.zeros((n_test, self.n_classes_))
+
+        for i in range(n_test):
+            distances = np.count_nonzero(
+                self.X_train_encoded_ != x_test_encoded[i], axis=1
+            )
+            similarities = n_bits - distances
+
+            class_scores = np.zeros(self.n_classes_)
+            for k, label in enumerate(self.classes_):
+                class_sims = similarities[self.y_train_ == label]
+                sorted_desc = np.sort(class_sims)[::-1]
+                top_u = min(self.n_value, len(sorted_desc))
+                class_scores[k] = np.sum(sorted_desc[:top_u])
+
+            total = np.sum(class_scores)
+            if total > 0:
+                proba[i] = class_scores / total
+            else:
+                proba[i] = 1.0 / self.n_classes_
+
+        return proba
 
     def get_pattern_importances(self):
-        """Calculate feature importances."""
-        # TODO: Implement actual pattern importance calculation
-        #
-
-        # Mock: return absolute mean of coefficients (excluding intercept)
-        if self.coef_ is None:
-            return None
-
-        if self.n_classes_ == 2:
-            # Binary: single set of coefficients
-            return np.abs(self.coef_[1:])
-        else:
-            # Multi-class: average across all classes
-            return np.mean(np.abs(self.coef_[1:]), axis=1)
+        """Calculate feature importances (not yet implemented)."""
+        return None
 
     def save(self, filepath: str = "./model.pkl"):
         """
@@ -239,7 +288,8 @@ class NSBCEngine:
         )
 
         model.encoder_ = MLBinaryEncoderVectorized(
-            encoder_type=model_state["encoder_type"], verbose=verbose
+            encoder_type=model_state["encoder_type"],
+            verbose=verbose,
         )
 
         if model_state["encoder_params"]:
