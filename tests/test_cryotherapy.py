@@ -11,9 +11,7 @@ from nsbc import NSBCClassifier
 @pytest.fixture
 def cryotherapy_data():
     """Load cryotherapy dataset."""
-    csv_path = os.path.join(
-        os.path.dirname(__file__), "..", "original_matlab_code", "cryotherapy.csv"
-    )
+    csv_path = os.path.join(os.path.dirname(__file__), "cryotherapy.csv")
     dataset = np.loadtxt(csv_path, delimiter=",")
     x = dataset[:, :-1]
     y = dataset[:, -1].astype(int)
