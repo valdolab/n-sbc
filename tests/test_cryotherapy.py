@@ -71,7 +71,7 @@ def test_loocv_balanced_accuracy(cryotherapy_data):
     # Also check per-class: sensitivity ~92.68%, specificity ~91.67%
     assert (
         abs(per_class_recall[0] * 100 - 91.67) < 1.5
-    ), f"Specificity {per_class_recall[0]*100:.2f}% deviates from 91.67%"
+    ), f"Specificity {per_class_recall[0] * 100:.2f}% deviates from 91.67%"
     assert (
         abs(per_class_recall[1] * 100 - 92.68) < 1.5
-    ), f"Sensitivity {per_class_recall[1]*100:.2f}% deviates from 92.68%"
+    ), f"Sensitivity {per_class_recall[1] * 100:.2f}% deviates from 92.68%"
