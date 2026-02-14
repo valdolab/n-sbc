@@ -2,7 +2,7 @@ import json
 import pickle
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from tqdm import tqdm
@@ -19,22 +19,22 @@ class EncodingParams:
     n_features: int = 0
     min_val: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization"""
         params = {}
         for key, value in self.__dict__.items():
             if isinstance(value, np.ndarray):
                 params[key] = value.tolist()
-            elif isinstance(value, (np.integer, np.int64, np.int32)):
+            elif isinstance(value, np.integer | np.int64 | np.int32):
                 params[key] = int(value)
-            elif isinstance(value, (np.floating, np.float64, np.float32)):
+            elif isinstance(value, np.floating | np.float64 | np.float32):
                 params[key] = float(value)
             else:
                 params[key] = value
         return params
 
     @classmethod
-    def from_dict(cls, params_dict: Dict) -> "EncodingParams":
+    def from_dict(cls, params_dict: dict) -> "EncodingParams":
         """Create from dictionary"""
         params = cls()
         for key, value in params_dict.items():
@@ -167,7 +167,7 @@ class MLBinaryEncoder:
             )
 
         # Parameters learned during fit
-        self.params: Optional[EncodingParams] = None
+        self.params: EncodingParams | None = None
         self.is_fitted = False
 
     def fit(
@@ -234,7 +234,7 @@ class MLBinaryEncoder:
 
     def transform(
         self, x: np.ndarray, normalized: bool = False
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Transform data using learned parameters.
 
@@ -311,7 +311,7 @@ class MLBinaryEncoder:
 
     def fit_transform(
         self, x: np.ndarray, num_decimals: int = 2, factor: int = 10
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Fit encoder and transform data in one step.
 
@@ -418,7 +418,7 @@ class MLBinaryEncoder:
         if self.verbose:
             print(f"Encoding parameters loaded from {filepath}")
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         """Get encoder configuration parameters"""
         return {
             "encoder_type": self.encoder_type,
