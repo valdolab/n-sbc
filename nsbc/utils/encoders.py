@@ -198,22 +198,16 @@ class MLBinaryEncoder:
         self.params.n_features = n_features
 
         # Global minimum across all features (single scalar)
-        # MATLAB: params.min_val = min(min(data))
         global_min = np.min(x)
         self.params.min_val = float(global_min)
 
         # Shift to positive, round, then convert to integers
-        # MATLAB: data_positive = data + abs(params.min_val)
-        #         data_positive = round(data_positive, num_decimals)
-        #         data_int = round(data_positive * factorm)
-        #         data_int(data_int < 0) = 0
         data_positive = x + abs(global_min)
         data_rounded = np.round(data_positive, num_decimals)
         data_int = np.floor(data_rounded * factor + 0.5).astype(np.int64)
         data_int[data_int < 0] = 0
 
         # Bit widths from max value per feature
-        # MATLAB: feature_bin_lengths(i) = length(dec2bin(max_val))
         self.params.feature_bit_widths = np.zeros(n_features, dtype=np.int32)
         for i in range(n_features):
             max_val = int(np.max(data_int[:, i]))
@@ -276,16 +270,15 @@ class MLBinaryEncoder:
 
         Replicates nsbc_normalize.m (with saved params) + nsbc_togray.m clamping.
         """
-        # MATLAB: data_positive = data + abs(params.min_val)
+        # data_positive = data + abs(params.min_val)
         data_positive = x + abs(self.params.min_val)
         data_rounded = np.round(data_positive, self.params.num_decimals)
-        # MATLAB: data_int = round(data_positive * factorm)
+        # data_int = round(data_positive * factorm)
         x_normalized = np.floor(data_rounded * self.params.factor + 0.5).astype(
             np.int64
         )
-        # MATLAB: data_int(data_int < 0) = 0
         x_normalized[x_normalized < 0] = 0
-        # MATLAB: data_int(:, i) = min(data_int(:, i), 2^feature_bin_lengths(i) - 1)
+        # data_int(:, i) = min(data_int(:, i), 2^feature_bin_lengths(i) - 1)
         for i in range(x.shape[1]):
             max_allowed = (1 << int(self.params.feature_bit_widths[i])) - 1
             x_normalized[:, i] = np.minimum(x_normalized[:, i], max_allowed)
