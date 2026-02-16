@@ -38,7 +38,11 @@ print(f"Accuracy: {clf.score(X_test, y_test):.2%}")
 
 ## Examples
 
-See the `examples/` directory for usage notebooks. Future releases will include explainability and visualization notebooks.
+In `examples/` will contain examples of how to use the nsbc package, how to train and save the model, how to update it with new data (without requiring a costly training process), and how to load the model to make predictions.
+
+#### TODO:
+In next packege release new functions will be added to visualize the model's explainability, making it completely transparent to human understanding. This will allow us to understand the specific reasons or feartures that influenced the model's classification.
+
 
 ## How It Works
 
