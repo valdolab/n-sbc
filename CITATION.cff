@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated paper."
+title: "n-SBC: N-Similarity Binary Classifier"
+type: software
+license: MIT
+repository-code: "https://github.com/valdolab/n-sbc"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Velazquez-Gonzalez
+      given-names: Osvaldo
+    - family-names: Alarcón-Paredes
+      given-names: Antonio
+    - family-names: Yañez-Marquez
+      given-names: Cornelio
+  title: "Medical pattern classification using a novel binary similarity approach based on an associative classifier"
+  journal: "Frontiers in Artificial Intelligence"
+  volume: 8
+  year: 2026
+  month: 1
+  doi: "10.3389/frai.2025.1610856"

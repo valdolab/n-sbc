@@ -16,11 +16,13 @@ class BaseNSBC(BaseEstimator, ABC):
         self,
         n_value=1,
         decimals=2,
+        factor=10,
         random_state=None,
         verbose=0,
     ):
         self.n_value = n_value
         self.decimals = decimals
+        self.factor = factor
         self.random_state = random_state
         self.verbose = verbose
 
@@ -30,6 +32,8 @@ class BaseNSBC(BaseEstimator, ABC):
             raise ValueError(f"n_value must be > 0, got {self.n_value}")
         if self.decimals < 0:
             raise ValueError(f"decimals must be >= 0, got {self.decimals}")
+        if self.factor <= 0:
+            raise ValueError(f"factor must be > 0, got {self.factor}")
 
     @abstractmethod
     def _fit_internal(self, x, y):

@@ -17,9 +17,11 @@ class NSBCClassifier(BaseNSBC, ClassifierMixin):
     Parameters
     ----------
     n_value : int, default=1
-        Number value parameter for the model.
+        Number of top neighbors to sum per class.
     decimals : int, default=2
         Number of decimal places for rounding.
+    factor : int, default=10
+        Multiplicative factor to convert rounded data to integers.
     random_state : int or None, default=None
         Random state for reproducibility.
     verbose : int, default=0
@@ -56,6 +58,7 @@ class NSBCClassifier(BaseNSBC, ClassifierMixin):
         self._engine = NSBCEngine(
             n_value=self.n_value,
             decimals=self.decimals,
+            factor=self.factor,
             random_state=self.random_state,
         )
 
