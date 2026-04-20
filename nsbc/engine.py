@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.utils import check_random_state
 
+from nsbc.tools.matrix_z import ZMatrix, compute_feature_match_ratios
 from nsbc.utils.encoders import MLBinaryEncoderVectorized
 
 
@@ -215,8 +216,84 @@ class NSBCEngine:
 
         return proba
 
+    def predict_explain(self, x):
+        """Predict with full explainability output.
+
+        Parameters
+        ----------
+        x : array-like of shape (n_samples, n_features)
+
+        Returns
+        -------
+        ZMatrix
+            Dataclass with z-matrix, class scores, predictions,
+            top-u indices, and feature importances.
+        """
+        x = np.asarray(x)
+        x_test_encoded = self.encoder_.transform(x)
+        if isinstance(x_test_encoded, tuple):
+            x_test_encoded = x_test_encoded[0]
+
+        n_test = x_test_encoded.shape[0]
+        n_train = self.X_train_encoded_.shape[0]
+        n_bits = x_test_encoded.shape[1]
+        n_features = self.encoder_.params.n_features
+        feature_bit_widths = self.encoder_.params.feature_bit_widths
+
+        z = np.zeros((n_test, n_train), dtype=np.int32)
+        class_scores = np.zeros((n_test, self.n_classes_))
+        predictions = np.zeros(n_test, dtype=int)
+        top_u_indices = []
+        feature_importances = np.zeros((n_test, n_features))
+
+        for i in range(n_test):
+            distances = np.count_nonzero(
+                self.X_train_encoded_ != x_test_encoded[i], axis=1
+            )
+            z[i] = n_bits - distances
+
+            sample_top_u = {}
+            for k, label in enumerate(self.classes_):
+                mask = self.y_train_ == label
+                class_indices = np.where(mask)[0]
+                class_sims = z[i, mask]
+                sorted_order = np.argsort(-class_sims)
+                top_u = min(self.n_value, len(sorted_order))
+                top_indices = class_indices[sorted_order[:top_u]]
+                sample_top_u[label] = top_indices
+                class_scores[i, k] = np.sum(class_sims[sorted_order[:top_u]])
+
+            pred_class = self.classes_[np.argmax(class_scores[i])]
+            predictions[i] = pred_class
+
+            top_train_idx = sample_top_u[pred_class]
+            ratios = compute_feature_match_ratios(
+                x_test_encoded[i],
+                self.X_train_encoded_[top_train_idx],
+                feature_bit_widths,
+            )
+            feature_importances[i] = np.mean(ratios, axis=0)
+            top_u_indices.append(sample_top_u)
+
+        result = ZMatrix(
+            z=z,
+            class_scores=class_scores,
+            predictions=predictions,
+            top_u_indices=top_u_indices,
+            feature_importances=feature_importances,
+            feature_bit_widths=feature_bit_widths,
+            classes=self.classes_,
+            n_value=self.n_value,
+            x_test_encoded=x_test_encoded,
+            x_train_encoded=self.X_train_encoded_,
+        )
+        self._last_z_matrix = result
+        return result
+
     def get_pattern_importances(self):
-        """Calculate feature importances (not yet implemented)."""
+        """Return global feature importances if predict_explain was called."""
+        if hasattr(self, "_last_z_matrix") and self._last_z_matrix is not None:
+            return self._last_z_matrix.global_feature_importances
         return None
 
     def save(self, filepath: str = "./model.pkl"):
