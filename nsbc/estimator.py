@@ -116,6 +116,43 @@ class NSBCClassifier(BaseNSBC, ClassifierMixin):
 
         return self._engine.predict_proba(x)
 
+    def predict_explain(self, x):
+        """Predict with full explainability output.
+
+        Parameters
+        ----------
+        x : array-like of shape (n_samples, n_features)
+
+        Returns
+        -------
+        ZMatrix
+            Contains z-matrix, class scores, predictions,
+            top-u indices, and feature importances.
+        """
+        check_is_fitted(self, ["classes_", "_engine"])
+        x = check_array(x, accept_sparse=False)
+        if x.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"x has {x.shape[1]} features, "
+                f"but NSBCClassifier is expecting {self.n_features_in_} features"
+            )
+
+        result = self._engine.predict_explain(x)
+        result.predictions = self._label_encoder.inverse_transform(result.predictions)
+        original_classes = self._label_encoder.inverse_transform(result.classes)
+        remapped = []
+        for sample_dict in result.top_u_indices:
+            new_dict = {}
+            for encoded_label, indices in sample_dict.items():
+                original_label = self._label_encoder.inverse_transform([encoded_label])[
+                    0
+                ]
+                new_dict[original_label] = indices
+            remapped.append(new_dict)
+        result.top_u_indices = remapped
+        result.classes = original_classes
+        return result
+
     def score(self, x, y, sample_weight=None):
         """Return the mean accuracy on the given test data and labels.
 
