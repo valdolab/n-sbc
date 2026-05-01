@@ -4,6 +4,11 @@ title: "n-SBC: N-Similarity Binary Classifier"
 type: software
 license: MIT
 repository-code: "https://github.com/valdolab/n-sbc"
+authors:
+  - family-names: Velazquez-Gonzalez
+    given-names: Osvaldo
+    orcid: "https://orcid.org/0009-0004-8935-6288"
+    affiliation: "Centro de Investigacion en Computacion, Instituto Politecnico Nacional"
 preferred-citation:
   type: article
   authors:

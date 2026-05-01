@@ -7,6 +7,7 @@
   <a href="https://pypi.org/project/nsbc/"><img src="https://img.shields.io/pypi/pyversions/nsbc" alt="Python"></a>
   <a href="https://github.com/valdolab/n-sbc/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://doi.org/10.3389/frai.2025.1610856"><img src="https://img.shields.io/badge/DOI-10.3389%2Ffrai.2025.1610856-blue" alt="Paper"></a>
+  <a href="https://valdolab.github.io/n-sbc/"><img src="https://img.shields.io/badge/docs-online-green" alt="Docs"></a>
 </p>
 
 # n-SBC
@@ -95,6 +96,10 @@ If you use n-SBC in your research, please cite:
   doi={10.3389/frai.2025.1610856}
 }
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## License
 
