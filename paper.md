@@ -1,5 +1,5 @@
 ---
-title: 'n-SBC: A Python package for similarity-based classification with built-in explainability'
+title: 'n-SBC: n-Similarity Binary Classfier, a Python package for explainable machine learning classification'
 tags:
   - Python
   - machine learning
@@ -32,7 +32,7 @@ The n-SBC algorithm was introduced in @velazquez2026medical as a novel machine l
 
 # State of the field
 
-Instance-based classifiers such as *k*-nearest neighbors (kNN) are widely used for their simplicity and interpretability. However, standard kNN uses Euclidean or Minkowski distances over raw feature values. Post-hoc explainability methods like SHAP [@lundberg2017unified] can be applied to any model but produce approximate explanations that do not reflect the model's actual computation.
+No existing software package implements the n-SBC algorithm. The closest alternatives are packages for similar instance based models. Distance based classifiers like k-nearest neighbors (kNN), available in scikit-learn [@pedregosa2011scikit], are popular because they are simple and easy to understand. However, standard kNN uses Euclidean or Minkowski distances based on raw feature values and does not directly provide feature-level explanations. Post-hoc explainability methods, such as SHAP [@lundberg2017unified], can work with any model but give only approximate explanations that do not fully capture how the model computes results. n-SBC is the first open-source implementation of this algorithm. It offers built-in explainability where feature contributions come directly from the prediction process instead of being an external approximation.
 
 # Software design
 
