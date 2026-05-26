@@ -1,0 +1,42 @@
+site_name: n-SBC
+site_url: https://valdolab.github.io/n-sbc/
+site_description: N-Similarity Binary Classifier — a lazy ML classifier with built-in explainability
+site_author: Osvaldo Velazquez-Gonzalez
+repo_url: https://github.com/valdolab/n-sbc
+repo_name: valdolab/n-sbc
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - API Reference: api.md
+  - Explainability: explainability.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
