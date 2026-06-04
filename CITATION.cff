@@ -9,6 +9,13 @@ authors:
     given-names: Osvaldo
     orcid: "https://orcid.org/0009-0004-8935-6288"
     affiliation: "Centro de Investigacion en Computacion, Instituto Politecnico Nacional"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20545100
+    description: "Concept DOI for all versions of the n-SBC software (Zenodo)"
+  - type: doi
+    value: 10.5281/zenodo.20545101
+    description: "DOI for n-SBC version 1.2.3 (Zenodo)"
 preferred-citation:
   type: article
   authors:
