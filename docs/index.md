@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/nsbc)](https://pypi.org/project/nsbc/)
 [![Python](https://img.shields.io/pypi/pyversions/nsbc)](https://pypi.org/project/nsbc/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/valdolab/n-sbc/blob/main/LICENSE)
+[![DOI](https://zenodo.org/badge/1059062228.svg)](https://doi.org/10.5281/zenodo.20545100)
 
 ## Overview
 
