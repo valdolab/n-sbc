@@ -8,7 +8,7 @@
   <a href="https://github.com/valdolab/n-sbc/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
   <a href="https://doi.org/10.3389/frai.2025.1610856"><img src="https://img.shields.io/badge/DOI-10.3389%2Ffrai.2025.1610856-blue" alt="Paper"></a>
   <a href="https://valdolab.github.io/n-sbc/"><img src="https://img.shields.io/badge/docs-online-green" alt="Docs"></a>
-  <a href="https://doi.org/10.5281/zenodo.20545100"><img src="https://zenodo.org/badge/1059062228.svg" alt="Zenodo DOI"></a>
+  <a href="https://doi.org/10.5281/zenodo.20545100"><img src="https://img.shields.io/badge/Zenodo-10.5281%2Fzenodo.20545100-1682D4?logo=zenodo&logoColor=white" alt="Zenodo DOI"></a>
 </p>
 
 # n-SBC
